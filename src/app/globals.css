@@ -115,6 +115,7 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+<<<<<<< HEAD
 
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -130,3 +131,5 @@
 body {
   min-height: max(884px, 100dvh);
 }
+=======
+>>>>>>> c955d92c5acd67682dda86dafc446b7d98cf4599
