@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { TransactionProvider } from "@/lib/TransactionContext";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -106,7 +107,9 @@ export default function RootLayout({
           `
         }} />
       </head>
-      <body className="bg-black text-white font-body-main antialiased min-h-screen">{children}</body>
+      <body className="bg-black text-white font-body-main antialiased min-h-screen">
+        <TransactionProvider>{children}</TransactionProvider>
+      </body>
     </html>
   );
 }

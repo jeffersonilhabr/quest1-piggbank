@@ -1,4 +1,61 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useTransactions } from "@/lib/TransactionContext";
+import { useMemo } from "react";
+import { TransactionsTable } from "@/components/dashboard/TransactionsTable";
+import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+};
+
+const formatDate = (date: Date) => {
+  return new Intl.DateTimeFormat("pt-BR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+};
+
 export default function DashboardPage() {
+  const router = useRouter();
+  const { transactions, isLoading } = useTransactions();
+
+  const metrics = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const monthTransactions = transactions.filter((t) => {
+      const tDate = new Date(t.date);
+      return tDate.getMonth() === currentMonth && tDate.getFullYear() === currentYear;
+    });
+
+    const income = monthTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const expenses = monthTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const balance = income - expenses;
+    const totalBalance = transactions.reduce(
+      (sum, t) => sum + ((t.type === "income" ? 1 : -1) * t.amount),
+      0
+    );
+
+    return { income, expenses, balance, totalBalance };
+  }, [transactions]);
+
+  const recentTransactions = useMemo(() => {
+    return transactions.slice(0, 3);
+  }, [transactions]);
+
   return (
     <>
       {/* TopAppBar */}
@@ -10,7 +67,10 @@ export default function DashboardPage() {
           <span className="font-black text-xl tracking-tighter text-slate-950 dark:text-white uppercase">Capital Control</span>
         </div>
         <div className="flex items-center gap-4">
-          <button className="bg-white text-black px-4 py-2 rounded font-label-caps text-label-caps active:scale-95 transition-transform duration-75">
+          <button
+            onClick={() => router.push("/new")}
+            className="bg-white text-black px-4 py-2 rounded font-label-caps text-label-caps active:scale-95 transition-transform duration-75"
+          >
             + NOVO
           </button>
           <span className="material-symbols-outlined text-slate-950 dark:text-white cursor-pointer" data-icon="notifications">notifications</span>
@@ -21,8 +81,17 @@ export default function DashboardPage() {
         <div className="mb-10">
           <h1 className="font-label-caps text-label-caps text-on-primary-container mb-2">RESUMO DA CONTA</h1>
           <div className="flex flex-col md:flex-row md:items-end gap-2">
-            <span className="font-metric-lg text-metric-lg text-white">R$ 142.850,00</span>
-            <span className="text-green-500 font-label-caps text-label-caps mb-1">+4.2% ESTE MÊS</span>
+            <span className="font-metric-lg text-metric-lg text-white">
+              {formatCurrency(metrics.totalBalance)}
+            </span>
+            <span
+              className={`font-label-caps text-label-caps mb-1 ${
+                metrics.balance >= 0 ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {metrics.balance >= 0 ? "+" : ""}
+              {formatCurrency(metrics.balance)} ESTE MÊS
+            </span>
           </div>
         </div>
         {/* Bento Grid Layout */}
@@ -33,11 +102,20 @@ export default function DashboardPage() {
               <span className="font-label-caps text-label-caps text-on-primary-container">RECEITA MENSAL</span>
               <span className="material-symbols-outlined text-green-500" data-icon="trending_up">trending_up</span>
             </div>
-            <div className="font-display-table text-display-table text-white mb-4">R$ 52.400</div>
-            <div className="h-1 bg-white/5 w-full rounded-full overflow-hidden">
-              <div className="h-full bg-white w-3/4"></div>
+            <div className="font-display-table text-display-table text-white mb-4">
+              {formatCurrency(metrics.income)}
             </div>
-            <div className="mt-2 font-label-caps text-[10px] text-slate-500">75% DA META ATINGIDA</div>
+            <div className="h-1 bg-white/5 w-full rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white"
+                style={{
+                  width: `${metrics.income > 0 ? Math.min(100, (metrics.income / 100000) * 100) : 0}%`,
+                }}
+              ></div>
+            </div>
+            <div className="mt-2 font-label-caps text-[10px] text-slate-500">
+              {metrics.income > 0 ? "Receita registrada" : "Sem receitas"}
+            </div>
           </div>
           {/* Monthly Expense Card */}
           <div className="md:col-span-4 p-6 bg-black border border-white/10 rounded-lg group hover:border-white/30 transition-all duration-200">
@@ -45,11 +123,20 @@ export default function DashboardPage() {
               <span className="font-label-caps text-label-caps text-on-primary-container">DESPESA MENSAL</span>
               <span className="material-symbols-outlined text-red-500" data-icon="trending_down">trending_down</span>
             </div>
-            <div className="font-display-table text-display-table text-white mb-4">R$ 18.210</div>
-            <div className="h-1 bg-white/5 w-full rounded-full overflow-hidden">
-              <div className="h-full bg-white w-1/4"></div>
+            <div className="font-display-table text-display-table text-white mb-4">
+              {formatCurrency(metrics.expenses)}
             </div>
-            <div className="mt-2 font-label-caps text-[10px] text-slate-500">22% DO ORÇAMENTO</div>
+            <div className="h-1 bg-white/5 w-full rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white"
+                style={{
+                  width: `${metrics.expenses > 0 ? Math.min(100, (metrics.expenses / 50000) * 100) : 0}%`,
+                }}
+              ></div>
+            </div>
+            <div className="mt-2 font-label-caps text-[10px] text-slate-500">
+              {metrics.expenses > 0 ? "Despesas registradas" : "Sem despesas"}
+            </div>
           </div>
           {/* Cash Flow Sparkline */}
           <div className="md:col-span-4 p-6 bg-black border border-white/10 rounded-lg">
@@ -68,62 +155,20 @@ export default function DashboardPage() {
               <span>DOM</span>
             </div>
           </div>
-          {/* Recent Activity Table */}
+          {/* Transactions Export Table */}
           <div className="md:col-span-8 p-6 bg-black border border-white/10 rounded-lg">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="font-label-caps text-label-caps text-white">ATIVIDADE RECENTE</h2>
-              <span className="text-xs font-label-caps text-slate-500 cursor-pointer hover:text-white">VER TUDO</span>
+            <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-label-caps text-label-caps text-white">Transações</h2>
+                <p className="text-slate-500 text-sm">Exporte as transações visíveis em formato CSV.</p>
+              </div>
+              <ExportCsvButton transactions={transactions} />
             </div>
-            <div className="space-y-4">
-              {/* Row 1 */}
-              <div className="flex items-center justify-between py-3 border-b border-white/5 hover:bg-white/5 px-2 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white/5 rounded flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white" data-icon="shopping_cart">shopping_cart</span>
-                  </div>
-                  <div>
-                    <div className="font-display-table text-sm text-white">Apple Store Brasil</div>
-                    <div className="font-label-caps text-[10px] text-slate-500">Hardware &amp; Tech</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-display-table text-sm text-white">- R$ 12.499,00</div>
-                  <div className="font-label-caps text-[10px] text-slate-500">HOJE, 14:20</div>
-                </div>
-              </div>
-              {/* Row 2 */}
-              <div className="flex items-center justify-between py-3 border-b border-white/5 hover:bg-white/5 px-2 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white/5 rounded flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white" data-icon="payments">payments</span>
-                  </div>
-                  <div>
-                    <div className="font-display-table text-sm text-white">Transferência Recebida</div>
-                    <div className="font-label-caps text-[10px] text-slate-500">Cliente #4492</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-display-table text-sm text-green-500">+ R$ 4.500,00</div>
-                  <div className="font-label-caps text-[10px] text-slate-500">ONTEM, 09:15</div>
-                </div>
-              </div>
-              {/* Row 3 */}
-              <div className="flex items-center justify-between py-3 hover:bg-white/5 px-2 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white/5 rounded flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white" data-icon="restaurant">restaurant</span>
-                  </div>
-                  <div>
-                    <div className="font-display-table text-sm text-white">Fogo de Chão</div>
-                    <div className="font-label-caps text-[10px] text-slate-500">Corporate Dining</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-display-table text-sm text-white">- R$ 840,20</div>
-                  <div className="font-label-caps text-[10px] text-slate-500">22 JUN, 20:45</div>
-                </div>
-              </div>
-            </div>
+            {isLoading ? (
+              <div className="text-slate-500 text-center py-4">Carregando...</div>
+            ) : (
+              <TransactionsTable transactions={transactions} />
+            )}
           </div>
           {/* Insights Card */}
           <div className="md:col-span-4 p-6 bg-black border border-white/10 rounded-lg flex flex-col justify-between">
