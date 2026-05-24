@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-<<<<<<< HEAD
 import { TransactionProvider } from "@/lib/TransactionContext";
-=======
->>>>>>> c955d92c5acd67682dda86dafc446b7d98cf4599
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -21,12 +18,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className={cn("dark", geist.variable)}>
-<<<<<<< HEAD
       <head>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Public+Sans:wght@700&display=swap" rel="stylesheet"/>
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-        <script id="tailwind-config" dangerouslySetInnerHTML={{
-          __html: `
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Public+Sans:wght@700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+        <script
+          id="tailwind-config"
+          dangerouslySetInnerHTML={{
+            __html: `
             tailwind.config = {
                 darkMode: "class",
                 theme: {
@@ -108,15 +106,14 @@ export default function RootLayout({
                     },
                 },
             }
-          `
-        }} />
+          `,
+        }}
+        />
       </head>
       <body className="bg-black text-white font-body-main antialiased min-h-screen">
         <TransactionProvider>{children}</TransactionProvider>
       </body>
-=======
-      <body className="font-sans">{children}</body>
->>>>>>> c955d92c5acd67682dda86dafc446b7d98cf4599
     </html>
+
   );
 }

@@ -1,9 +1,9 @@
-<<<<<<< HEAD
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useTransactions } from "@/lib/TransactionContext";
-import { useMemo } from "react";
+import { useMemo, useState, FormEvent } from "react";
+import type { Transaction } from "@/types";
 import { TransactionsTable } from "@/components/dashboard/TransactionsTable";
 import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 
@@ -24,7 +24,53 @@ const formatDate = (date: Date) => {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { transactions, isLoading } = useTransactions();
+  const { transactions, isLoading, deleteTransaction, editTransaction } = useTransactions();
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [transactionType, setTransactionType] = useState<"entrada" | "saida">("entrada");
+  const [value, setValue] = useState<string>("0.00");
+  const [date, setDate] = useState<string>("");
+  const [category, setCategory] = useState<string>("Vendas");
+  const [description, setDescription] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const openEditModal = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setTransactionType(transaction.type === "income" ? "entrada" : "saida");
+    setValue(transaction.amount.toFixed(2));
+    setDate(transaction.date.toISOString().slice(0, 10));
+    setCategory(transaction.category);
+    setDescription(transaction.description);
+    setIsSubmitting(false);
+  };
+
+  const closeEditModal = () => {
+    setEditingTransaction(null);
+    setIsSubmitting(false);
+  };
+
+  const handleEditSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingTransaction || !date || !category || !value) return;
+
+    setIsSubmitting(true);
+    try {
+      editTransaction({
+        ...editingTransaction,
+        type: transactionType === "entrada" ? "income" : "expense",
+        amount: parseFloat(value),
+        date: new Date(date),
+        category,
+        description:
+          description ||
+          `${transactionType === "entrada" ? "Receita" : "Despesa"} - ${category}`,
+      });
+      closeEditModal();
+    } catch (error) {
+      console.error("Error editing transaction:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const metrics = useMemo(() => {
     const now = new Date();
@@ -168,7 +214,11 @@ export default function DashboardPage() {
             {isLoading ? (
               <div className="text-slate-500 text-center py-4">Carregando...</div>
             ) : (
-              <TransactionsTable transactions={transactions} />
+              <TransactionsTable
+                transactions={transactions}
+                onDelete={deleteTransaction}
+                onEdit={openEditModal}
+              />
             )}
           </div>
           {/* Insights Card */}
@@ -185,30 +235,149 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
-      {/* Modal Mockup (Hidden or Overlay State) */}
-      <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-        <div className="bg-black border border-white/10 w-full max-w-md p-8 rounded-lg shadow-2xl">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="font-label-caps text-label-caps text-white">NOVA TRANSAÇÃO</h3>
-            <span className="material-symbols-outlined text-slate-500 cursor-pointer" data-icon="close">close</span>
+      {editingTransaction ? (
+        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-950 border border-slate-950/20 dark:border-white/20 shadow-2xl relative overflow-hidden">
+            <div className="px-8 pt-8 pb-6 border-b border-black/5 dark:border-white/5 flex justify-between items-start">
+              <div className="space-y-1">
+                <h2 className="font-display-table text-display-table text-slate-950 dark:text-white">
+                  Editar Transação
+                </h2>
+                <p className="font-label-caps text-label-caps text-on-secondary-container">
+                  Atualize os detalhes do lançamento
+                </p>
+              </div>
+              <button
+                onClick={closeEditModal}
+                className="w-10 h-10 flex items-center justify-center border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                type="button"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="p-8 space-y-8">
+              <div className="flex p-1 bg-surface-container-low dark:bg-white/5 border border-black/5 dark:border-white/5">
+                <label className="flex-1">
+                  <input
+                    checked={transactionType === "entrada"}
+                    onChange={() => setTransactionType("entrada")}
+                    className="sr-only peer"
+                    name="type"
+                    type="radio"
+                  />
+                  <div className="text-center py-3 font-label-caps text-label-caps cursor-pointer transition-all peer-checked:bg-white dark:peer-checked:bg-white peer-checked:text-black peer-checked:shadow-sm">
+                    Entrada
+                  </div>
+                </label>
+                <label className="flex-1">
+                  <input
+                    checked={transactionType === "saida"}
+                    onChange={() => setTransactionType("saida")}
+                    className="sr-only peer"
+                    name="type"
+                    type="radio"
+                  />
+                  <div className="text-center py-3 font-label-caps text-label-caps cursor-pointer transition-all peer-checked:bg-white dark:peer-checked:bg-white peer-checked:text-black peer-checked:shadow-sm">
+                    Saída
+                  </div>
+                </label>
+              </div>
+
+              <div className="space-y-3">
+                <label className="font-label-caps text-label-caps text-on-secondary-container block">
+                  Valor da Transação
+                </label>
+                <div className="relative group">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-metric-lg text-metric-lg text-on-primary-container">
+                    R$
+                  </span>
+                  <input
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    className="w-full bg-transparent border-b-2 border-black/10 dark:border-white/10 focus:border-black dark:focus:border-white outline-none pl-14 py-4 font-metric-lg text-metric-lg text-slate-950 dark:text-white transition-colors appearance-none"
+                    min="0.01"
+                    required
+                    step="0.01"
+                    type="number"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="font-label-caps text-label-caps text-on-secondary-container block">
+                  Descrição (Opcional)
+                </label>
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full bg-surface-container-low dark:bg-white/5 border border-black/10 dark:border-white/10 px-4 py-3 font-body-main text-on-surface focus:border-black dark:focus:border-white outline-none transition-all"
+                  placeholder="Ex: Venda para cliente XYZ"
+                  type="text"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-gutter">
+                <div className="space-y-2">
+                  <label className="font-label-caps text-label-caps text-on-secondary-container block">
+                    Data
+                  </label>
+                  <div className="relative">
+                    <input
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="w-full bg-surface-container-low dark:bg-white/5 border border-black/10 dark:border-white/10 px-4 py-3 font-body-main text-on-surface focus:border-black dark:focus:border-white outline-none transition-all"
+                      type="date"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="font-label-caps text-label-caps text-on-secondary-container block">
+                    Categoria
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-surface-container-low dark:bg-white/5 border border-black/10 dark:border-white/10 px-4 py-3 font-body-main text-on-surface focus:border-black dark:focus:border-white outline-none transition-all appearance-none"
+                  >
+                    <option>Vendas</option>
+                    <option>Marketing</option>
+                    <option>Operacional</option>
+                    <option>Impostos</option>
+                    <option>Folha de Pagamento</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-4 flex flex-col gap-3">
+                <button
+                  className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-label-caps text-label-caps hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
+                  type="submit"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Salvando..." : "Salvar alterações"}
+                </button>
+                <button
+                  onClick={closeEditModal}
+                  className="w-full py-4 border border-black/10 dark:border-white/10 text-on-surface font-label-caps text-label-caps hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+                  type="button"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 opacity-10">
+              <span
+                className="material-symbols-outlined text-[200px]"
+                style={{ fontVariationSettings: "'wght' 100" }}
+              >
+                payments
+              </span>
+            </div>
           </div>
-          <form className="space-y-6">
-            <div>
-              <label className="block font-label-caps text-[10px] text-slate-500 mb-2 uppercase">Valor</label>
-              <input className="w-full bg-white/5 border border-white/10 focus:border-white text-white font-metric-lg text-2xl py-4 px-4 rounded outline-none transition-colors" placeholder="R$ 0,00" type="text"/>
-            </div>
-            <div>
-              <label className="block font-label-caps text-[10px] text-slate-500 mb-2 uppercase">Descrição</label>
-              <input className="w-full bg-white/5 border border-white/10 focus:border-white text-white p-3 rounded outline-none transition-colors" placeholder="Nome da despesa ou receita" type="text"/>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <button className="border border-white/10 py-3 font-label-caps text-label-caps text-white hover:bg-white/10" type="button">DESPESA</button>
-              <button className="bg-white py-3 font-label-caps text-label-caps text-black" type="button">RECEITA</button>
-            </div>
-            <button className="w-full bg-white text-black font-label-caps text-label-caps py-4 rounded font-bold">CONFIRMAR LANÇAMENTO</button>
-          </form>
         </div>
-      </div>
+      ) : null}
       {/* BottomNavBar */}
       <nav className="fixed bottom-0 w-full z-50 flex justify-around items-center px-4 h-20 pb-safe bg-white dark:bg-black border-t border-slate-950/10 dark:border-white/10 shadow-none">
         {/* Dashboard (Active) */}
@@ -233,61 +402,5 @@ export default function DashboardPage() {
         </a>
       </nav>
     </>
-=======
-import { MetricsCard } from "@/components/dashboard/MetricsCard";
-import { TransactionsTable } from "@/components/dashboard/TransactionsTable";
-import { getMetrics, getTransactions } from "@/lib/api";
-import { getDefaultDateRange } from "@/lib/date";
-
-export default async function DashboardPage() {
-  const filters = { dateRange: getDefaultDateRange() };
-  const [metrics, transactions] = await Promise.all([
-    getMetrics(filters),
-    getTransactions(filters),
-  ]);
-  return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-8 py-4">
-          <span className="text-lg font-semibold text-foreground">
-            🐷 piggbank
-          </span>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
-            BH
-          </div>
-        </div>
-      </nav>
-
-      <main className="mx-auto max-w-6xl space-y-8 px-8 py-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">
-              Visão Geral
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Métricas financeiras do período
-            </p>
-          </div>
-          {/* TODO: substituir pelo DateRangeFilter — piggbank-142 */}
-          <div className="rounded-md border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
-            Últimos 30 dias
-          </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-4">
-          {metrics.map((metric) => (
-            <MetricsCard key={metric.label} metric={metric} />
-          ))}
-        </div>
-
-        <div>
-          <h2 className="mb-4 text-base font-medium text-foreground">
-            Transações recentes
-          </h2>
-          <TransactionsTable transactions={transactions} />
-        </div>
-      </main>
-    </div>
->>>>>>> c955d92c5acd67682dda86dafc446b7d98cf4599
   );
 }
