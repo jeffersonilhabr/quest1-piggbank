@@ -1,5 +1,5 @@
 import type { Transaction } from "@/types";
-import { formatDisplayDate } from "@/lib/date";
+import { formatCurrency, formatDisplayDate } from "@/lib/date";
 
 type TransactionsTableProps = {
   transactions: Transaction[];
@@ -63,10 +63,7 @@ export function TransactionsTable({ transactions, onDelete, onEdit }: Transactio
                 }`}
               >
                 {transaction.type === "income" ? "+" : "-"}
-                {new Intl.NumberFormat("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                }).format(Math.abs(transaction.amount))}
+                {formatCurrency(Math.abs(transaction.amount))}
               </td>
               <td className="px-4 py-3 text-right space-x-3">
                 {onEdit ? (
